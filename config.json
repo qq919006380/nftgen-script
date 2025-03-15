@@ -8,5 +8,14 @@
   "generateIndividualFiles": true,
   "ipfsCidPlaceholder": "YOUR_CID_HERE",
   "royaltyPercentage": 5,
-  "royaltyAddress": "0xYOUR_WALLET_ADDRESS_HERE"
+  "royaltyAddress": "0xYOUR_WALLET_ADDRESS_HERE",
+  
+  "imageGeneration": {
+    "enabled": true,
+    "format": "png",
+    "quality": 90,
+    "startIndex": 1,
+    "numThreads": 0,
+    "compressionLevel": 6
+  }
 } 

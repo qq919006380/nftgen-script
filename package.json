@@ -11,7 +11,6 @@
     "build": "tsc",
     "start": "ts-node src/index.ts",
     "generate": "ts-node src/index.ts",
-    "generate:config": "ts-node generate.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -23,11 +22,11 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "@types/yargs": "^17.0.32",
+    "@types/sharp": "^0.32.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "yargs": "^17.7.2"
+    "sharp": "^0.33.2"
   }
 }

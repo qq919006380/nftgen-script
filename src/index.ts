@@ -1,106 +1,77 @@
 #!/usr/bin/env node
 
-import { generateMetadata, generateFromConfig, loadConfig } from './generateMetadata';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+import { generateFromConfig } from './generateMetadata';
+import { generateImages, resumeImageGeneration } from './generateImages';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// 定义参数接口
-interface Arguments {
-  nftDir: string;
-  layerOrder: string[];
-  numNfts: number;
-  outputDir: string;
-  collectionName: string;
-  description: string;
-  config?: string;
-  generateIndividualFiles?: boolean;
-  [x: string]: unknown;
-}
-
-// 解析命令行参数
-const argv = yargs(hideBin(process.argv))
-  .option('config', {
-    alias: 'c',
-    type: 'string',
-    description: '配置文件路径',
-    default: ''
-  })
-  .option('nftDir', {
-    alias: 'd',
-    type: 'string',
-    description: '包含NFT图层的目录',
-    default: '../nft'
-  })
-  .option('layerOrder', {
-    alias: 'l',
-    type: 'array',
-    description: '图层顺序（例如："bg skin clothes hair"）',
-  })
-  .option('numNfts', {
-    alias: 'n',
-    type: 'number',
-    description: '要生成的NFT数量',
-  })
-  .option('outputDir', {
-    alias: 'o',
-    type: 'string',
-    description: '元数据文件的输出目录',
-    default: 'metadata'
-  })
-  .option('collectionName', {
-    type: 'string',
-    description: 'NFT集合的名称',
-    default: 'My NFT Collection'
-  })
-  .option('description', {
-    type: 'string',
-    description: 'NFT集合的描述',
-    default: 'A collection of unique NFTs'
-  })
-  .option('generateIndividualFiles', {
-    type: 'boolean',
-    description: '是否为每个NFT生成单独的JSON文件',
-    default: true
-  })
-  .help()
-  .alias('help', 'h')
-  .parseSync() as Arguments;
-
 // 主函数
-function main() {
-  // 如果提供了配置文件，则从配置文件生成
-  if (argv.config && argv.config.length > 0) {
-    const configPath = path.resolve(argv.config);
-    if (fs.existsSync(configPath)) {
-      console.log(`Using config file: ${configPath}`);
-      generateFromConfig(configPath);
-      return;
-    } else {
-      console.error(`Config file not found: ${configPath}`);
-      process.exit(1);
+async function main() {
+  // 使用默认配置文件路径
+  const configPath = path.join(__dirname, '..', 'config.json');
+  
+  // 检查配置文件是否存在
+  if (fs.existsSync(configPath)) {
+    console.log(`使用配置文件: ${configPath}`);
+    
+    // 读取配置文件
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    // 生成元数据
+    console.log('开始生成元数据...');
+    generateFromConfig(configPath);
+    console.log('元数据生成完成！');
+    
+    // 如果启用了图片生成
+    if (config.imageGeneration && config.imageGeneration.enabled) {
+      console.log('开始生成NFT图片...');
+      
+      // 检查是否需要恢复之前的生成进度
+      const progressFilePath = path.join(config.outputDir, 'generation_progress.json');
+      const shouldResume = fs.existsSync(progressFilePath);
+      
+      // 设置图片生成配置
+      const imageConfig = {
+        nftDir: config.nftDir,
+        outputDir: config.outputDir,
+        imageFormat: config.imageGeneration.format || 'png',
+        imageQuality: config.imageGeneration.quality || 90,
+        numThreads: config.imageGeneration.numThreads || 0, // 0表示自动选择线程数
+        layerOrder: config.layerOrder,
+        metadataPath: path.join(config.outputDir, 'metadata.json'),
+        compressionLevel: config.imageGeneration.compressionLevel || 6
+      };
+      
+      // 如果指定了起始索引，或者需要恢复
+      if (shouldResume) {
+        console.log('检测到之前的生成进度，尝试恢复...');
+        await resumeImageGeneration(imageConfig);
+      } else if (config.imageGeneration.startIndex && config.imageGeneration.startIndex > 1) {
+        console.log(`从指定的起始索引 ${config.imageGeneration.startIndex} 开始生成...`);
+        await generateImages({
+          ...imageConfig,
+          startIndex: config.imageGeneration.startIndex
+        });
+      } else {
+        console.log('从头开始生成所有图片...');
+        await generateImages({
+          ...imageConfig,
+          startIndex: 1
+        });
+      }
+      
+      console.log('NFT图片生成完成！');
     }
-  }
-
-  // 检查必要的参数
-  if (!argv.layerOrder || !argv.numNfts) {
-    console.error('Error: layerOrder and numNfts are required when not using a config file');
-    yargs.showHelp();
+  } else {
+    console.error(`错误: 配置文件不存在: ${configPath}`);
+    console.error(`请确保在项目根目录下有一个有效的config.json文件`);
     process.exit(1);
   }
-
-  // 从命令行参数生成
-  generateMetadata({
-    nftDir: argv.nftDir,
-    layerOrder: argv.layerOrder,
-    numNfts: argv.numNfts,
-    outputDir: argv.outputDir,
-    collectionName: argv.collectionName,
-    description: argv.description,
-    generateIndividualFiles: argv.generateIndividualFiles
-  });
 }
 
 // 执行主函数
-main(); 
+main().catch(error => {
+  console.error('执行过程中发生错误:', error);
+  process.exit(1);
+}); 
