@@ -16,6 +16,7 @@ interface ImageGenerationConfig {
   layerOrder: string[];
   metadataPath: string;
   compressionLevel?: number;
+  forceRegenerate?: boolean; // 添加强制重新生成选项
 }
 
 // 定义元数据接口
@@ -343,6 +344,13 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
 export function resumeImageGeneration(config: Omit<ImageGenerationConfig, 'startIndex'>): Promise<void> {
   const progressFilePath = path.join(config.outputDir, 'generation_progress.json');
   
+  // 如果设置了强制重新生成，则删除进度文件
+  if (config.forceRegenerate && fs.existsSync(progressFilePath)) {
+    fs.unlinkSync(progressFilePath);
+    console.log('Force regenerate: Removed existing progress file.');
+    return generateImages({ ...config, startIndex: 1 });
+  }
+  
   if (!fs.existsSync(progressFilePath)) {
     console.log('No progress file found. Starting from the beginning.');
     return generateImages({ ...config, startIndex: 1 });
@@ -352,8 +360,10 @@ export function resumeImageGeneration(config: Omit<ImageGenerationConfig, 'start
     const progressData = JSON.parse(fs.readFileSync(progressFilePath, 'utf8'));
     
     if (progressData.completed) {
-      console.log('Previous generation was already completed.');
-      return Promise.resolve();
+      // 如果已完成但用户仍然调用了生成函数，可能是想重新生成
+      console.log('Previous generation was already completed. Starting from the beginning.');
+      fs.unlinkSync(progressFilePath); // 删除旧的进度文件
+      return generateImages({ ...config, startIndex: 1 });
     }
     
     // 从上次的当前索引继续

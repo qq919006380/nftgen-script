@@ -3,7 +3,7 @@
   "outputDir": "metadata",
   "collectionName": "My NFT Collection",
   "description": "A collection of unique NFTs",
-  "totalSupply": 10,
+  "totalSupply": 20000,
   "layerOrder": ["bg", "skin", "clothes", "hair", "pants", "shoes", "ball"],
   "generateIndividualFiles": true,
   "ipfsCidPlaceholder": "YOUR_CID_HERE",
@@ -16,6 +16,7 @@
     "quality": 90,
     "startIndex": 1,
     "numThreads": 0,
-    "compressionLevel": 6
+    "compressionLevel": 6,
+    "forceRegenerate": false
   }
 } 

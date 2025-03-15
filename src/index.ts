@@ -40,14 +40,15 @@ async function main() {
         numThreads: config.imageGeneration.numThreads || 0, // 0表示自动选择线程数
         layerOrder: config.layerOrder,
         metadataPath: path.join(config.outputDir, 'metadata.json'),
-        compressionLevel: config.imageGeneration.compressionLevel || 6
+        compressionLevel: config.imageGeneration.compressionLevel || 6,
+        forceRegenerate: config.imageGeneration.forceRegenerate || false
       };
       
       // 如果指定了起始索引，或者需要恢复
-      if (shouldResume) {
+      if (shouldResume && !config.imageGeneration.forceRegenerate) {
         console.log('检测到之前的生成进度，尝试恢复...');
         await resumeImageGeneration(imageConfig);
-      } else if (config.imageGeneration.startIndex && config.imageGeneration.startIndex > 1) {
+      } else if (config.imageGeneration.startIndex && config.imageGeneration.startIndex > 1 && !config.imageGeneration.forceRegenerate) {
         console.log(`从指定的起始索引 ${config.imageGeneration.startIndex} 开始生成...`);
         await generateImages({
           ...imageConfig,
