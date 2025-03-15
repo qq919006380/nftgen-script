@@ -1,0 +1,33 @@
+{
+  "name": "nftgen-ts",
+  "version": "1.0.0",
+  "description": "NFT元数据生成工具",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nftgen": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "generate": "ts-node src/index.ts",
+    "generate:config": "ts-node generate.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nft",
+    "metadata",
+    "generator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/yargs": "^17.0.32",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "yargs": "^17.7.2"
+  }
+}

@@ -1,0 +1,41 @@
+# 忽略 layers 文件夹及其所有内容
+/layers/
+/metadata/*
+# 忽略常见的操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 忽略编辑器/IDE 文件
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 忽略日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 忽略依赖目录
+/node_modules/
+/bower_components/
+
+# 忽略构建输出
+/dist/
+/build/
+/out/
+
+# 忽略环境文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 忽略临时文件
+*.tmp
+*.swp
+*.swo
+*~

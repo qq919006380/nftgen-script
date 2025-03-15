@@ -1,0 +1,36 @@
+{
+  "name": "My NFT Collection #6",
+  "description": "A collection of unique NFTs",
+  "image": "ipfs://YOUR_CID_HERE/6.png",
+  "edition": 6,
+  "attributes": [
+    {
+      "trait_type": "Bg",
+      "value": "bg8"
+    },
+    {
+      "trait_type": "Skin",
+      "value": "s9"
+    },
+    {
+      "trait_type": "Clothes",
+      "value": "c7"
+    },
+    {
+      "trait_type": "Hair",
+      "value": "h4"
+    },
+    {
+      "trait_type": "Pants",
+      "value": "p11"
+    },
+    {
+      "trait_type": "Shoes",
+      "value": "s1"
+    },
+    {
+      "trait_type": "Ball",
+      "value": "b6"
+    }
+  ]
+}

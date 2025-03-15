@@ -1,0 +1,12 @@
+{
+  "nftDir": "./layers",
+  "outputDir": "metadata",
+  "collectionName": "My NFT Collection",
+  "description": "A collection of unique NFTs",
+  "totalSupply": 10,
+  "layerOrder": ["bg", "skin", "clothes", "hair", "pants", "shoes", "ball"],
+  "generateIndividualFiles": true,
+  "ipfsCidPlaceholder": "YOUR_CID_HERE",
+  "royaltyPercentage": 5,
+  "royaltyAddress": "0xYOUR_WALLET_ADDRESS_HERE"
+} 

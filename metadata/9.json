@@ -1,0 +1,36 @@
+{
+  "name": "My NFT Collection #9",
+  "description": "A collection of unique NFTs",
+  "image": "ipfs://YOUR_CID_HERE/9.png",
+  "edition": 9,
+  "attributes": [
+    {
+      "trait_type": "Bg",
+      "value": "bg2"
+    },
+    {
+      "trait_type": "Skin",
+      "value": "s9"
+    },
+    {
+      "trait_type": "Clothes",
+      "value": "c4"
+    },
+    {
+      "trait_type": "Hair",
+      "value": "h4"
+    },
+    {
+      "trait_type": "Pants",
+      "value": "p9"
+    },
+    {
+      "trait_type": "Shoes",
+      "value": "s6"
+    },
+    {
+      "trait_type": "Ball",
+      "value": "b7"
+    }
+  ]
+}

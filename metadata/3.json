@@ -1,0 +1,36 @@
+{
+  "name": "My NFT Collection #3",
+  "description": "A collection of unique NFTs",
+  "image": "ipfs://YOUR_CID_HERE/3.png",
+  "edition": 3,
+  "attributes": [
+    {
+      "trait_type": "Bg",
+      "value": "bg9"
+    },
+    {
+      "trait_type": "Skin",
+      "value": "s4"
+    },
+    {
+      "trait_type": "Clothes",
+      "value": "c2"
+    },
+    {
+      "trait_type": "Hair",
+      "value": "h7"
+    },
+    {
+      "trait_type": "Pants",
+      "value": "p1"
+    },
+    {
+      "trait_type": "Shoes",
+      "value": "s4"
+    },
+    {
+      "trait_type": "Ball",
+      "value": "b2"
+    }
+  ]
+}
