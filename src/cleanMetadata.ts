@@ -13,18 +13,21 @@ import * as readline from 'readline';
 
 interface Config {
   outputDir?: string;
+  batchSize?: number;
   [key: string]: any;
 }
 
 // 读取配置文件获取metadata目录
 let configPath = path.join(__dirname, '..', 'config.json');
 let metadataDir = './metadata';
+let batchSize = 0;
 
 try {
   if (fs.existsSync(configPath)) {
     const configData = fs.readFileSync(configPath, 'utf8');
     const config: Config = JSON.parse(configData);
     metadataDir = config.outputDir || metadataDir;
+    batchSize = config.batchSize || 0;
   }
 } catch (error) {
   console.error('读取配置文件失败:', error);
@@ -64,32 +67,61 @@ function cleanMetadataDir(): void {
     console.log('已删除生成进度文件');
   }
 
-  // 删除images目录
-  const imagesDir = path.join(metadataDir, 'images');
-  if (fs.existsSync(imagesDir)) {
-    deleteDirectory(imagesDir);
-    console.log('已删除images目录');
-  }
-
-  // 删除单个NFT元数据文件
-  const files = fs.readdirSync(metadataDir);
-  let deletedCount = 0;
-
-  for (const file of files) {
-    const filePath = path.join(metadataDir, file);
+  // 检查是否使用批次目录结构
+  if (batchSize > 0) {
+    console.log(`检测到使用批次目录结构 (批次大小: ${batchSize})，清理批次子目录...`);
+    // 读取metadataDir目录下的所有批次目录
+    const dirEntries = fs.readdirSync(metadataDir, { withFileTypes: true });
+    const batchDirs = dirEntries
+      .filter(entry => entry.isDirectory() && /^\d+-\d+$/.test(entry.name))
+      .map(entry => entry.name);
     
-    // 跳过目录和metadata.json（如果需要保留）
-    if (fs.statSync(filePath).isDirectory() || 
-        (keepMetadata && file === 'metadata.json')) {
-      continue;
+    if (batchDirs.length > 0) {
+      console.log(`找到 ${batchDirs.length} 个批次目录`);
+      for (const batchDir of batchDirs) {
+        const fullBatchPath = path.join(metadataDir, batchDir);
+        deleteDirectory(fullBatchPath);
+        console.log(`已删除批次目录: ${batchDir}`);
+      }
+    } else {
+      console.log('未找到批次目录');
     }
-    
-    // 删除文件
-    fs.unlinkSync(filePath);
-    deletedCount++;
+  } else {
+    // 原始逻辑: 删除images目录和单个NFT元数据文件
+    const imagesDir = path.join(metadataDir, 'images');
+    if (fs.existsSync(imagesDir)) {
+      deleteDirectory(imagesDir);
+      console.log('已删除images目录');
+    }
+  
+    // 删除单个NFT元数据文件
+    const files = fs.readdirSync(metadataDir);
+    let deletedCount = 0;
+  
+    for (const file of files) {
+      const filePath = path.join(metadataDir, file);
+      
+      // 跳过目录和metadata.json（如果需要保留）
+      if (fs.statSync(filePath).isDirectory() || 
+          (keepMetadata && file === 'metadata.json')) {
+        continue;
+      }
+      
+      // 删除文件
+      fs.unlinkSync(filePath);
+      deletedCount++;
+    }
+  
+    console.log(`已删除 ${deletedCount} 个文件`);
   }
 
-  console.log(`已删除 ${deletedCount} 个文件`);
+  // 如果不保留metadata.json，则删除它
+  const metadataJsonPath = path.join(metadataDir, 'metadata.json');
+  if (!keepMetadata && fs.existsSync(metadataJsonPath)) {
+    fs.unlinkSync(metadataJsonPath);
+    console.log('已删除metadata.json文件');
+  }
+  
   console.log('清空操作完成');
 }
 

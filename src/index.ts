@@ -41,7 +41,8 @@ async function main() {
         layerOrder: config.layerOrder,
         metadataPath: path.join(config.outputDir, 'metadata.json'),
         compressionLevel: config.imageGeneration.compressionLevel || 6,
-        forceRegenerate: config.imageGeneration.forceRegenerate || false
+        forceRegenerate: config.imageGeneration.forceRegenerate || false,
+        batchSize: config.batchSize || 10000 // 添加批次大小参数
       };
       
       // 如果指定了起始索引，或者需要恢复

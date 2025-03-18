@@ -17,6 +17,7 @@ interface ImageGenerationConfig {
   metadataPath: string;
   compressionLevel?: number;
   forceRegenerate?: boolean; // 添加强制重新生成选项
+  batchSize?: number; // 每个子目录的图片数量
 }
 
 // 定义元数据接口
@@ -41,6 +42,27 @@ interface CollectionMetadata {
   nfts: NFTMetadata[];
 }
 
+// 获取图片的输出路径
+function getOutputPath(edition: number, outputImagesDir: string, imageFormat: string, batchSize: number = 10000): string {
+  // 如果未指定批次大小或批次大小为0，直接使用原始路径
+  if (!batchSize) {
+    return path.join(outputImagesDir, `${edition}.${imageFormat}`);
+  }
+  
+  // 计算批次范围
+  const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
+  const batchEnd = batchStart + batchSize - 1;
+  const batchDir = `${batchStart}-${batchEnd}`;
+  
+  // 创建批次目录
+  const batchPath = path.join(outputImagesDir, batchDir, 'img');
+  if (!fs.existsSync(batchPath)) {
+    fs.mkdirSync(batchPath, { recursive: true });
+  }
+  
+  return path.join(batchPath, `${edition}.${imageFormat}`);
+}
+
 // 工作线程处理函数
 async function workerFunction(data: {
   nftDir: string;
@@ -52,6 +74,7 @@ async function workerFunction(data: {
   imageFormat: 'png' | 'jpg' | 'webp';
   imageQuality: number;
   compressionLevel: number;
+  batchSize?: number; // 添加批次大小参数
 }) {
   const { 
     nftDir, 
@@ -62,7 +85,8 @@ async function workerFunction(data: {
     endIdx,
     imageFormat,
     imageQuality,
-    compressionLevel
+    compressionLevel,
+    batchSize = 10000 // 默认批次大小为10000
   } = data;
 
   // 确保输出目录存在
@@ -108,8 +132,8 @@ async function workerFunction(data: {
           baseImage = baseImage.composite(layers.slice(1));
         }
         
-        // 根据指定格式输出图像
-        const outputPath = path.join(outputImagesDir, `${edition}.${imageFormat}`);
+        // 根据指定格式输出图像到相应的批次目录
+        const outputPath = getOutputPath(edition, outputImagesDir, imageFormat, batchSize);
         
         switch (imageFormat) {
           case 'png':
@@ -161,12 +185,14 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
     numThreads = Math.max(1, cpus().length - 1), // 默认使用CPU核心数-1的线程
     layerOrder,
     metadataPath,
-    compressionLevel = 6 // PNG压缩级别 (0-9)
+    compressionLevel = 6, // PNG压缩级别 (0-9)
+    batchSize = 10000 // 默认每批10000张图片
   } = config;
   
   console.log(`Starting image generation with ${numThreads} threads`);
   console.log(`Image format: ${imageFormat}, Quality: ${imageQuality}`);
   console.log(`Starting from index: ${startIndex}`);
+  console.log(`Using batch size: ${batchSize} images per directory`);
   
   // 读取元数据文件
   if (!fs.existsSync(metadataPath)) {
@@ -208,6 +234,7 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
     startTime: new Date().toISOString(),
     lastUpdateTime: new Date().toISOString(),
     imageFormat,
+    batchSize,
     completed: false
   };
   
@@ -224,7 +251,8 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
       endIdx,
       imageFormat,
       imageQuality,
-      compressionLevel
+      compressionLevel,
+      batchSize
     });
     
     // 更新进度文件为完成状态
@@ -265,7 +293,8 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
           endIdx: threadEndIdx,
           imageFormat,
           imageQuality,
-          compressionLevel
+          compressionLevel,
+          batchSize
         }
       });
       
