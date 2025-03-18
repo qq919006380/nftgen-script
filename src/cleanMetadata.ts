@@ -10,6 +10,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import config from '../config';
 
 interface Config {
   outputDir?: string;
@@ -17,22 +18,9 @@ interface Config {
   [key: string]: any;
 }
 
-// 读取配置文件获取metadata目录
-let configPath = path.join(__dirname, '..', 'config.json');
-let metadataDir = './metadata';
-let batchSize = 0;
-
-try {
-  if (fs.existsSync(configPath)) {
-    const configData = fs.readFileSync(configPath, 'utf8');
-    const config: Config = JSON.parse(configData);
-    metadataDir = config.outputDir || metadataDir;
-    batchSize = config.batchSize || 0;
-  }
-} catch (error) {
-  console.error('读取配置文件失败:', error);
-  console.log('将使用默认metadata目录:', metadataDir);
-}
+// 使用导入的配置模块
+let metadataDir = config.outputDir || './metadata';
+let batchSize = config.batchSize || 0;
 
 // 检查命令行参数
 const keepMetadata = process.argv.includes('--keep-metadata');
@@ -60,11 +48,18 @@ function cleanMetadataDir(): void {
     return;
   }
 
-  // 删除进度文件
-  const progressFilePath = path.join(metadataDir, 'generation_progress.json');
-  if (fs.existsSync(progressFilePath)) {
-    fs.unlinkSync(progressFilePath);
-    console.log('已删除生成进度文件');
+  // 删除所有进度相关文件
+  const progressFiles = [
+    'generation_progress.json',
+    'drive_upload_progress.json',
+  ];
+  
+  for (const progressFile of progressFiles) {
+    const progressFilePath = path.join(metadataDir, progressFile);
+    if (fs.existsSync(progressFilePath)) {
+      fs.unlinkSync(progressFilePath);
+      console.log(`已删除进度文件: ${progressFile}`);
+    }
   }
 
   // 检查是否使用批次目录结构

@@ -6,6 +6,8 @@
 Thumbs.db
 desktop.ini
 
+credentials.json
+
 # 忽略编辑器/IDE 文件
 .idea/
 .vscode/

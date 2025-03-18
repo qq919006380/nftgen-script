@@ -12,6 +12,7 @@
     "start": "ts-node src/index.ts",
     "clean": "ts-node src/cleanMetadata.ts",
     "clean:keep-metadata": "ts-node src/cleanMetadata.ts --keep-metadata",
+    "setup-drive": "ts-node src/index.ts setup-drive",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -28,6 +29,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "sharp": "^0.33.2"
   }
 }

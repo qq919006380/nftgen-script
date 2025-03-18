@@ -52,12 +52,13 @@ interface Config extends Omit<GenerateOptions, 'numNfts'> {
 /**
  * 从配置文件加载配置
  */
-function loadConfig(configPath: string = 'config.json'): Config {
+function loadConfig(configModulePath: string = '../config'): Config {
   try {
-    const configData = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(configData) as Config;
+    // 直接导入配置模块
+    const config = require(configModulePath).default;
+    return config as Config;
   } catch (error) {
-    console.error(`Error loading config file: ${error}`);
+    console.error(`Error loading config module: ${error}`);
     process.exit(1);
   }
 }
@@ -272,8 +273,8 @@ function generateMetadata(options: GenerateOptions): void {
 /**
  * 从配置文件生成元数据
  */
-function generateFromConfig(configPath: string = 'config.json'): void {
-  const config = loadConfig(configPath);
+function generateFromConfig(configModulePath: string = '../config'): void {
+  const config = loadConfig(configModulePath);
   
   generateMetadata({
     nftDir: config.nftDir,
