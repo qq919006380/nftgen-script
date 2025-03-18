@@ -13,7 +13,7 @@
   
   "imageGeneration": {
     "enabled": true,
-    "format": "png",
+    "format": "jpg",
     "quality": 90,
     "startIndex": 1,
     "numThreads": 0,
