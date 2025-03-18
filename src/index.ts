@@ -5,6 +5,38 @@ import { generateImages, resumeImageGeneration } from './generateImages';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// 检查元数据是否已存在
+function metadataExists(outputDir: string, batchSize: number): boolean {
+  try {
+    // 检查目录是否存在
+    if (!fs.existsSync(outputDir)) {
+      return false;
+    }
+    
+    // 查找所有批次目录
+    const dirEntries = fs.readdirSync(outputDir, { withFileTypes: true });
+    const batchDirs = dirEntries
+      .filter(entry => entry.isDirectory() && /^\d+-\d+$/.test(entry.name))
+      .map(entry => entry.name);
+    
+    // 检查是否存在至少一个批次目录，且该目录中有metadata.json文件
+    if (batchDirs.length > 0) {
+      for (const batchDir of batchDirs) {
+        const metadataPath = path.join(outputDir, batchDir, 'metadata', 'metadata.json');
+        if (fs.existsSync(metadataPath)) {
+          console.log(`检测到已存在的元数据文件: ${metadataPath}`);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('检查元数据时出错:', error);
+    return false;
+  }
+}
+
 // 主函数
 async function main() {
   // 使用默认配置文件路径
@@ -18,10 +50,28 @@ async function main() {
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = JSON.parse(configData);
     
-    // 生成元数据
-    console.log('开始生成元数据...');
-    generateFromConfig(configPath);
-    console.log('元数据生成完成！');
+    // 设置默认的batchSize
+    const batchSize = config.batchSize || 10000;
+    
+    // 检查是否应该跳过现有元数据（默认为true）
+    const skipExistingMetadata = config.skipExistingMetadata !== undefined ? 
+      config.skipExistingMetadata : true;
+    
+    // 检查元数据是否已存在
+    let shouldSkipMetadataGeneration = false;
+    if (skipExistingMetadata) {
+      shouldSkipMetadataGeneration = metadataExists(config.outputDir, batchSize);
+    }
+    
+    // 根据元数据存在情况决定是否重新生成
+    if (shouldSkipMetadataGeneration) {
+      console.log('检测到现有元数据且skipExistingMetadata为true，跳过元数据生成阶段');
+    } else {
+      // 生成元数据
+      console.log('开始生成元数据...');
+      generateFromConfig(configPath);
+      console.log('元数据生成完成！');
+    }
     
     // 如果启用了图片生成
     if (config.imageGeneration && config.imageGeneration.enabled) {
