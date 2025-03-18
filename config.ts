@@ -2,7 +2,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-console.log(process.env.GOOGLE_CLIENT_ID);
 // 配置对象
 const config = {
   nftDir: "./layers",
