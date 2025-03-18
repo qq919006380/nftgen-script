@@ -39,7 +39,7 @@ async function main() {
         imageQuality: config.imageGeneration.quality || 90,
         numThreads: config.imageGeneration.numThreads || 0, // 0表示自动选择线程数
         layerOrder: config.layerOrder,
-        metadataPath: path.join(config.outputDir, 'metadata.json'),
+        metadataPath: path.join(config.outputDir, 'metadata.json'), // 这个路径实际上不再使用，但保留参数
         compressionLevel: config.imageGeneration.compressionLevel || 6,
         forceRegenerate: config.imageGeneration.forceRegenerate || false,
         batchSize: config.batchSize || 10000 // 添加批次大小参数

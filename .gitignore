@@ -1,7 +1,6 @@
 # 忽略 layers 文件夹及其所有内容
 /layers/
-/metadata/*
-/metadata/*.json
+/output
 # 忽略常见的操作系统文件
 .DS_Store
 Thumbs.db

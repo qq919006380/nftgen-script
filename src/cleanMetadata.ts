@@ -94,16 +94,16 @@ function cleanMetadataDir(): void {
       console.log('已删除images目录');
     }
   
-    // 删除单个NFT元数据文件
+    // 删除单个NFT元数据文件（现在已经不需要了，但保留代码防止向后兼容）
     const files = fs.readdirSync(metadataDir);
     let deletedCount = 0;
   
     for (const file of files) {
       const filePath = path.join(metadataDir, file);
       
-      // 跳过目录和metadata.json（如果需要保留）
+      // 跳过目录和metadata.json
       if (fs.statSync(filePath).isDirectory() || 
-          (keepMetadata && file === 'metadata.json')) {
+          file === 'metadata.json') {
         continue;
       }
       
@@ -112,14 +112,9 @@ function cleanMetadataDir(): void {
       deletedCount++;
     }
   
-    console.log(`已删除 ${deletedCount} 个文件`);
-  }
-
-  // 如果不保留metadata.json，则删除它
-  const metadataJsonPath = path.join(metadataDir, 'metadata.json');
-  if (!keepMetadata && fs.existsSync(metadataJsonPath)) {
-    fs.unlinkSync(metadataJsonPath);
-    console.log('已删除metadata.json文件');
+    if (deletedCount > 0) {
+      console.log(`已删除 ${deletedCount} 个文件`);
+    }
   }
   
   console.log('清空操作完成');

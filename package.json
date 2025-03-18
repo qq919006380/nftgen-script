@@ -10,7 +10,6 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/index.ts",
-    "generate": "ts-node src/index.ts",
     "clean": "ts-node src/cleanMetadata.ts",
     "clean:keep-metadata": "ts-node src/cleanMetadata.ts --keep-metadata",
     "prepublishOnly": "npm run build"

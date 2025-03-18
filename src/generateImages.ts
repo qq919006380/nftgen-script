@@ -14,10 +14,10 @@ interface ImageGenerationConfig {
   endIndex?: number;
   numThreads?: number;
   layerOrder: string[];
-  metadataPath: string;
+  metadataPath: string; // 这个参数保留但实际不使用
   compressionLevel?: number;
-  forceRegenerate?: boolean; // 添加强制重新生成选项
-  batchSize?: number; // 每个子目录的图片数量
+  forceRegenerate?: boolean;
+  batchSize?: number;
 }
 
 // 定义元数据接口
@@ -42,13 +42,18 @@ interface CollectionMetadata {
   nfts: NFTMetadata[];
 }
 
+// 获取包含特定NFT的批次元数据文件路径
+function getBatchMetadataPath(edition: number, outputDir: string, batchSize: number): string {
+  // 计算批次范围
+  const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
+  const batchEnd = batchStart + batchSize - 1;
+  const batchKey = `${batchStart}-${batchEnd}`;
+  
+  return path.join(outputDir, batchKey, 'metadata', 'metadata.json');
+}
+
 // 获取图片的输出路径
 function getOutputPath(edition: number, outputImagesDir: string, imageFormat: string, batchSize: number = 10000): string {
-  // 如果未指定批次大小或批次大小为0，直接使用原始路径
-  if (!batchSize) {
-    return path.join(outputImagesDir, `${edition}.${imageFormat}`);
-  }
-  
   // 计算批次范围
   const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
   const batchEnd = batchStart + batchSize - 1;
@@ -63,43 +68,85 @@ function getOutputPath(edition: number, outputImagesDir: string, imageFormat: st
   return path.join(batchPath, `${edition}.${imageFormat}`);
 }
 
+// 获取所有批次元数据信息
+function getAllBatchMetadata(outputDir: string, batchSize: number, startIndex: number, endIndex: number): Map<number, NFTMetadata> {
+  const allNfts = new Map<number, NFTMetadata>();
+  const processedBatches = new Set<string>();
+  
+  for (let edition = startIndex; edition <= endIndex; edition++) {
+    const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
+    const batchEnd = batchStart + batchSize - 1;
+    const batchKey = `${batchStart}-${batchEnd}`;
+    
+    if (!processedBatches.has(batchKey)) {
+      const metadataPath = path.join(outputDir, batchKey, 'metadata', 'metadata.json');
+      
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const metadataContent = fs.readFileSync(metadataPath, 'utf8');
+          const metadata: CollectionMetadata = JSON.parse(metadataContent);
+          
+          // 添加这个批次的所有NFT到映射中
+          for (const nft of metadata.nfts) {
+            allNfts.set(nft.edition, nft);
+          }
+          
+          processedBatches.add(batchKey);
+        } catch (error) {
+          console.error(`Error reading batch metadata file ${metadataPath}:`, error);
+        }
+      } else {
+        console.warn(`Batch metadata file not found: ${metadataPath}`);
+      }
+    }
+  }
+  
+  return allNfts;
+}
+
 // 工作线程处理函数
 async function workerFunction(data: {
   nftDir: string;
-  outputImagesDir: string;
+  outputDir: string;
   layerOrder: string[];
-  nfts: NFTMetadata[];
   startIdx: number;
   endIdx: number;
   imageFormat: 'png' | 'jpg' | 'webp';
   imageQuality: number;
   compressionLevel: number;
-  batchSize?: number; // 添加批次大小参数
+  batchSize: number;
 }) {
   const { 
     nftDir, 
-    outputImagesDir, 
+    outputDir, 
     layerOrder, 
-    nfts, 
     startIdx, 
     endIdx,
     imageFormat,
     imageQuality,
     compressionLevel,
-    batchSize = 10000 // 默认批次大小为10000
+    batchSize = 10000
   } = data;
 
-  // 确保输出目录存在
-  if (!fs.existsSync(outputImagesDir)) {
-    fs.mkdirSync(outputImagesDir, { recursive: true });
+  // 加载所有需要的NFT元数据
+  const allNfts = getAllBatchMetadata(outputDir, batchSize, startIdx + 1, endIdx + 1);
+  if (allNfts.size === 0) {
+    console.error("No NFT metadata found in batch directories. Please generate metadata first.");
+    if (parentPort) {
+      parentPort.postMessage({ type: 'error', edition: -1, error: "No NFT metadata found" });
+    }
+    return;
   }
 
   // 处理分配给此线程的NFT
   for (let i = startIdx; i <= endIdx; i++) {
-    if (i >= nfts.length) break;
+    const edition = i + 1;
+    const nft = allNfts.get(edition);
     
-    const nft = nfts[i];
-    const edition = nft.edition;
+    if (!nft) {
+      console.warn(`Warning: No metadata found for NFT #${edition}`);
+      continue;
+    }
     
     try {
       // 获取此NFT的所有图层
@@ -133,7 +180,7 @@ async function workerFunction(data: {
         }
         
         // 根据指定格式输出图像到相应的批次目录
-        const outputPath = getOutputPath(edition, outputImagesDir, imageFormat, batchSize);
+        const outputPath = getOutputPath(edition, outputDir, imageFormat, batchSize);
         
         switch (imageFormat) {
           case 'png':
@@ -182,11 +229,10 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
     imageQuality = 90,
     startIndex = 1,
     endIndex,
-    numThreads = Math.max(1, cpus().length - 1), // 默认使用CPU核心数-1的线程
+    numThreads = Math.max(1, cpus().length - 1),
     layerOrder,
-    metadataPath,
-    compressionLevel = 6, // PNG压缩级别 (0-9)
-    batchSize = 10000 // 默认每批10000张图片
+    compressionLevel = 6,
+    batchSize = 10000
   } = config;
   
   console.log(`Starting image generation with ${numThreads} threads`);
@@ -194,29 +240,53 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
   console.log(`Starting from index: ${startIndex}`);
   console.log(`Using batch size: ${batchSize} images per directory`);
   
-  // 读取元数据文件
-  if (!fs.existsSync(metadataPath)) {
-    throw new Error(`Metadata file not found: ${metadataPath}`);
+  // 确定总NFT数量和结束索引
+  let totalNFTs = 0;
+  let actualEndIndex = 0;
+  
+  // 找到所有批次目录，确定NFT总数
+  const dirEntries = fs.readdirSync(outputDir, { withFileTypes: true });
+  const batchDirs = dirEntries
+    .filter(entry => entry.isDirectory() && /^\d+-\d+$/.test(entry.name))
+    .map(entry => entry.name);
+  
+  // 检查每个批次目录是否有元数据文件
+  for (const batchDir of batchDirs) {
+    const metadataPath = path.join(outputDir, batchDir, 'metadata', 'metadata.json');
+    if (fs.existsSync(metadataPath)) {
+      try {
+        const metadataContent = fs.readFileSync(metadataPath, 'utf8');
+        const metadata: CollectionMetadata = JSON.parse(metadataContent);
+        totalNFTs += metadata.nfts.length;
+        
+        // 找出最大的edition
+        for (const nft of metadata.nfts) {
+          actualEndIndex = Math.max(actualEndIndex, nft.edition);
+        }
+      } catch (error) {
+        console.error(`Error reading batch metadata file ${metadataPath}:`, error);
+      }
+    }
   }
   
-  const metadataContent = fs.readFileSync(metadataPath, 'utf8');
-  const metadata: CollectionMetadata = JSON.parse(metadataContent);
-  
-  // 确保输出图像目录存在
-  const outputImagesDir = path.join(outputDir, 'images');
-  if (!fs.existsSync(outputImagesDir)) {
-    fs.mkdirSync(outputImagesDir, { recursive: true });
+  if (totalNFTs === 0) {
+    console.error("No NFT metadata found in batch directories. Please generate metadata first.");
+    return;
   }
   
-  // 确定结束索引
-  const actualEndIndex = endIndex ? Math.min(endIndex, metadata.nfts.length) : metadata.nfts.length;
+  console.log(`Found ${totalNFTs} NFTs in metadata files`);
+  
+  // 根据提供的endIndex或检测到的最大edition确定实际结束索引
+  if (endIndex) {
+    actualEndIndex = Math.min(endIndex, actualEndIndex);
+  }
   
   // 验证起始索引
-  if (startIndex < 1 || startIndex > metadata.nfts.length) {
-    throw new Error(`Invalid startIndex: ${startIndex}. Must be between 1 and ${metadata.nfts.length}`);
+  if (startIndex < 1 || startIndex > actualEndIndex) {
+    throw new Error(`Invalid startIndex: ${startIndex}. Must be between 1 and ${actualEndIndex}`);
   }
   
-  // 调整为0索引
+  // 调整为0索引（内部使用）
   const startIdx = startIndex - 1;
   const endIdx = actualEndIndex - 1;
   
@@ -244,9 +314,8 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
   if (numThreads <= 1) {
     await workerFunction({
       nftDir,
-      outputImagesDir,
+      outputDir,
       layerOrder,
-      nfts: metadata.nfts,
       startIdx,
       endIdx,
       imageFormat,
@@ -286,9 +355,8 @@ export async function generateImages(config: ImageGenerationConfig): Promise<voi
       const worker = new Worker(__filename, {
         workerData: {
           nftDir,
-          outputImagesDir,
+          outputDir,
           layerOrder,
-          nfts: metadata.nfts,
           startIdx: threadStartIdx,
           endIdx: threadEndIdx,
           imageFormat,

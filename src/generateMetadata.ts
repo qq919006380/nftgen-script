@@ -137,7 +137,7 @@ function generateMetadata(options: GenerateOptions): void {
     outputDir, 
     collectionName, 
     description,
-    generateIndividualFiles = true,
+    generateIndividualFiles = false, // 改为默认不生成单独文件
     ipfsCidPlaceholder = 'YOUR_CID_HERE',
     royaltyPercentage = 5,
     royaltyAddress = '0xYOUR_WALLET_ADDRESS_HERE',
@@ -175,8 +175,8 @@ function generateMetadata(options: GenerateOptions): void {
   // 随机选择组合
   const selectedCombinations = getRandomCombinations(allCombinations, actualNumNfts);
   
-  // 创建一个数组来存储所有NFT的元数据
-  const allNftsMetadata: NFTMetadata[] = [];
+  // 用于暂存每个批次的元数据
+  const batchMetadata: Record<string, NFTMetadata[]> = {};
   
   // 为每个组合生成元数据
   for (let i = 0; i < selectedCombinations.length; i++) {
@@ -198,16 +198,13 @@ function generateMetadata(options: GenerateOptions): void {
     
     const edition = i + 1;
     
+    // 计算批次信息
+    const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
+    const batchEnd = batchStart + batchSize - 1;
+    const batchKey = `${batchStart}-${batchEnd}`;
+    
     // 计算图片路径，基于批次
-    let imagePath: string;
-    if (batchSize > 0) {
-      const batchStart = Math.floor((edition - 1) / batchSize) * batchSize + 1;
-      const batchEnd = batchStart + batchSize - 1;
-      const batchDir = `${batchStart}-${batchEnd}`;
-      imagePath = `ipfs://${ipfsCidPlaceholder}/${batchDir}/img/${edition}.png`;
-    } else {
-      imagePath = `ipfs://${ipfsCidPlaceholder}/${edition}.png`;
-    }
+    const imagePath = `ipfs://${ipfsCidPlaceholder}/${batchKey}/img/${edition}.png`;
     
     const metadata: NFTMetadata = {
       name: `${collectionName} #${edition}`,
@@ -217,10 +214,13 @@ function generateMetadata(options: GenerateOptions): void {
       attributes
     };
     
-    // 添加到数组中，用于集合元数据
-    allNftsMetadata.push(metadata);
+    // 将元数据添加到相应批次
+    if (!batchMetadata[batchKey]) {
+      batchMetadata[batchKey] = [];
+    }
+    batchMetadata[batchKey].push(metadata);
     
-    // 如果需要生成单独的文件，则保存单个元数据到文件
+    // 如果需要生成单独的文件，则保存单个元数据到文件（保留此功能但默认不启用）
     if (generateIndividualFiles) {
       const outputPath = getMetadataOutputPath(edition, outputDir, batchSize);
       fs.writeFileSync(
@@ -235,28 +235,38 @@ function generateMetadata(options: GenerateOptions): void {
     }
   }
   
-  // 生成集合元数据（包含所有NFT信息）
-  const collectionMetadata: CollectionMetadata = {
-    name: collectionName,
-    description,
-    image: `ipfs://${ipfsCidPlaceholder}_COLLECTION`,
-    external_link: "",
-    seller_fee_basis_points: royaltyPercentage * 100, // 转换百分比为基点 (5% = 500 basis points)
-    fee_recipient: royaltyAddress,
-    nfts: allNftsMetadata
-  };
-  
-  // 保存集合元数据到metadata.json
-  fs.writeFileSync(
-    path.join(outputDir, "metadata.json"),
-    JSON.stringify(collectionMetadata, null, 2)
-  );
-  
-  console.log(`Generated metadata for ${actualNumNfts} NFTs in ${outputDir}`);
-  if (generateIndividualFiles) {
-    console.log(`Generated individual JSON files for each NFT in batch directories`);
+  // 为每个批次生成一个metadata.json文件
+  let totalBatches = 0;
+  for (const [batchKey, nfts] of Object.entries(batchMetadata)) {
+    // 为这个批次创建元数据目录
+    const batchDir = path.join(outputDir, batchKey);
+    const metadataDir = path.join(batchDir, 'metadata');
+    if (!fs.existsSync(metadataDir)) {
+      fs.mkdirSync(metadataDir, { recursive: true });
+    }
+    
+    // 创建批次集合元数据
+    const batchCollectionMetadata: CollectionMetadata = {
+      name: `${collectionName} (${batchKey})`,
+      description,
+      image: `ipfs://${ipfsCidPlaceholder}_COLLECTION`,
+      external_link: "",
+      seller_fee_basis_points: royaltyPercentage * 100,
+      fee_recipient: royaltyAddress,
+      nfts: nfts
+    };
+    
+    // 保存批次元数据文件
+    fs.writeFileSync(
+      path.join(metadataDir, "metadata.json"),
+      JSON.stringify(batchCollectionMetadata, null, 2)
+    );
+    
+    totalBatches++;
   }
-  console.log(`Generated collection metadata in ${outputDir}/metadata.json`);
+  
+  console.log(`Generated ${totalBatches} batch metadata files`);
+  console.log(`Metadata generation completed. Total NFTs: ${actualNumNfts}`);
 }
 
 /**
@@ -275,7 +285,8 @@ function generateFromConfig(configPath: string = 'config.json'): void {
     generateIndividualFiles: config.generateIndividualFiles,
     ipfsCidPlaceholder: config.ipfsCidPlaceholder,
     royaltyPercentage: config.royaltyPercentage,
-    royaltyAddress: config.royaltyAddress
+    royaltyAddress: config.royaltyAddress,
+    batchSize: config.batchSize
   });
 }
 
