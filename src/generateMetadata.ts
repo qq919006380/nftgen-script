@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as XLSX from 'xlsx';
 
 // 定义类型
 interface Attribute {
@@ -38,6 +39,12 @@ interface GenerateOptions {
   royaltyPercentage?: number;
   royaltyAddress?: string;
   batchSize?: number; // 每个子目录的图片/元数据数量
+  excelMetadata?: {
+    enabled: boolean;
+    filename: string;
+    includeImages: boolean;
+    sheetName: string;
+  };
 }
 
 interface Config extends Omit<GenerateOptions, 'numNfts'> {
@@ -47,6 +54,12 @@ interface Config extends Omit<GenerateOptions, 'numNfts'> {
   royaltyPercentage: number;
   royaltyAddress: string;
   batchSize?: number; // 每个子目录的图片/元数据数量
+  excelMetadata?: {
+    enabled: boolean;
+    filename: string;
+    includeImages: boolean;
+    sheetName: string;
+  };
 }
 
 /**
@@ -128,6 +141,64 @@ function getMetadataOutputPath(edition: number, outputDir: string, batchSize: nu
 }
 
 /**
+ * 生成Excel元数据文件
+ */
+function generateExcelMetadata(allNfts: NFTMetadata[], options: GenerateOptions): void {
+  if (!options.excelMetadata?.enabled) {
+    console.log('Excel元数据导出未启用');
+    return;
+  }
+
+  const { filename = 'collection_metadata.xlsx', sheetName = 'Collection Metadata' } = options.excelMetadata;
+  console.log(`正在生成Excel元数据，文件名: ${filename}`);
+
+  // 准备Excel数据
+  const excelData = allNfts.map(nft => {
+    // 基础元数据
+    const row: Record<string, any> = {
+      'Name': nft.name,
+      'Description': nft.description,
+      'Edition': nft.edition,
+      'Image URL': nft.image
+    };
+
+    // 添加属性列
+    nft.attributes.forEach(attr => {
+      row[attr.trait_type] = attr.value;
+    });
+
+    return row;
+  });
+
+  // 创建工作簿和工作表
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(excelData);
+  
+  // 设置列宽 - 根据内容自动调整
+  const colWidths = Object.keys(excelData[0] || {}).map(key => ({
+    wch: Math.max(
+      key.length, 
+      ...excelData.map(row => 
+        row[key] ? String(row[key]).length : 0
+      )
+    )
+  }));
+  ws['!cols'] = colWidths;
+  
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  
+  // 保存Excel文件
+  const excelPath = path.join(options.outputDir, filename);
+  try {
+    XLSX.writeFile(wb, excelPath);
+    console.log(`Excel元数据已导出到: ${excelPath}`);
+  } catch (error) {
+    console.error('Excel导出失败:', error);
+  }
+}
+
+/**
  * 生成NFT元数据
  */
 function generateMetadata(options: GenerateOptions): void {
@@ -138,11 +209,12 @@ function generateMetadata(options: GenerateOptions): void {
     outputDir, 
     collectionName, 
     description,
-    generateIndividualFiles = false, // 改为默认不生成单独文件
+    generateIndividualFiles = false,
     ipfsCidPlaceholder = 'YOUR_CID_HERE',
     royaltyPercentage = 5,
     royaltyAddress = '0xYOUR_WALLET_ADDRESS_HERE',
-    batchSize = 10000 // 默认每批10000张
+    batchSize = 10000,
+    excelMetadata
   } = options;
   
   console.log(`Using batch size: ${batchSize} NFTs per directory`);
@@ -178,6 +250,9 @@ function generateMetadata(options: GenerateOptions): void {
   
   // 用于暂存每个批次的元数据
   const batchMetadata: Record<string, NFTMetadata[]> = {};
+  
+  // 收集所有NFT元数据，用于生成Excel
+  const allNfts: NFTMetadata[] = [];
   
   // 为每个组合生成元数据
   for (let i = 0; i < selectedCombinations.length; i++) {
@@ -220,6 +295,7 @@ function generateMetadata(options: GenerateOptions): void {
       batchMetadata[batchKey] = [];
     }
     batchMetadata[batchKey].push(metadata);
+    allNfts.push(metadata); // 添加到总列表中，用于Excel导出
     
     // 如果需要生成单独的文件，则保存单个元数据到文件（保留此功能但默认不启用）
     if (generateIndividualFiles) {
@@ -268,6 +344,11 @@ function generateMetadata(options: GenerateOptions): void {
   
   console.log(`Generated ${totalBatches} batch metadata files`);
   console.log(`Metadata generation completed. Total NFTs: ${actualNumNfts}`);
+  
+  // 生成Excel元数据
+  if (excelMetadata?.enabled) {
+    generateExcelMetadata(allNfts, options);
+  }
 }
 
 /**
@@ -287,7 +368,8 @@ function generateFromConfig(configModulePath: string = '../config'): void {
     ipfsCidPlaceholder: config.ipfsCidPlaceholder,
     royaltyPercentage: config.royaltyPercentage,
     royaltyAddress: config.royaltyAddress,
-    batchSize: config.batchSize
+    batchSize: config.batchSize,
+    excelMetadata: config.excelMetadata
   });
 }
 

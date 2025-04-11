@@ -73,7 +73,8 @@ async function main() {
       ipfsCidPlaceholder: config.ipfsCidPlaceholder,
       royaltyPercentage: config.royaltyPercentage,
       royaltyAddress: config.royaltyAddress,
-      batchSize: config.batchSize
+      batchSize: config.batchSize,
+      excelMetadata: config.excelMetadata
     });
     console.log('元数据生成完成！');
   }
